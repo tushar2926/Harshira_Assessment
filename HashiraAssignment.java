@@ -1,8 +1,9 @@
+import java.io.*;
 import java.util.*;
 
 public class HashiraAssignment {
 
-    // Convert number string from given base to decimal
+    // Convert a number string from given base to decimal
     public static long toDecimal(String num, int base) {
         long value = 0;
         for (char c : num.toCharArray()) {
@@ -10,7 +11,7 @@ public class HashiraAssignment {
             if (Character.isDigit(c)) {
                 digit = c - '0';
             } else {
-                digit = 10 + (Character.toLowerCase(c) - 'a'); // supports hex-like digits
+                digit = 10 + (Character.toLowerCase(c) - 'a');
             }
             value = value * base + digit;
         }
@@ -18,62 +19,76 @@ public class HashiraAssignment {
     }
 
     public static void main(String[] args) {
-        // Example Input (replace with JSON parsing if needed)
-        int n = 4, k = 3;
+        if (args.length < 1) {
+            System.out.println("Usage: java HashiraAssignment <input.json>");
+            return;
+        }
 
-        int[] bases = {10, 2, 10, 4};
-        String[] values = {"4", "111", "12", "213"};
+        String fileName = args[0];
+        StringBuilder sb = new StringBuilder();
 
-        // Convert values into decimal roots
+        // Read file content
+        try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading file: " + e.getMessage());
+            return;
+        }
+
+        String jsonInput = sb.toString();
+
+        int n = 0, k = 0;
+        List<Integer> bases = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+
+        // Simple parsing
+        String[] lines = jsonInput.split("\n");
+        for (String line : lines) {
+            line = line.trim();
+
+            if (line.contains("\"n\"")) {
+                n = Integer.parseInt(line.replaceAll("[^0-9]", ""));
+            } else if (line.contains("\"k\"")) {
+                k = Integer.parseInt(line.replaceAll("[^0-9]", ""));
+            } else if (line.contains("\"base\"")) {
+                int base = Integer.parseInt(line.replaceAll("[^0-9]", ""));
+                bases.add(base);
+            } else if (line.contains("\"value\"")) {
+                String value = line.split(":")[1].replaceAll("[^0-9a-zA-Z]", "");
+                values.add(value);
+            }
+        }
+
+        // Convert to decimal roots
         List<Long> roots = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            roots.add(toDecimal(values[i], bases[i]));
+            roots.add(toDecimal(values.get(i), bases.get(i)));
         }
 
-        // Only keep first k roots
+        // Take first k roots
         roots = roots.subList(0, k);
 
-        // Polynomial degree = k (not k-1)
-        int degree = k;
-        double[][] mat = new double[k][degree + 1];
+        // Build polynomial coefficients
+        List<Long> coeffs = new ArrayList<>();
+        coeffs.add(1L);
 
-        // Build system of equations
-        for (int i = 0; i < k; i++) {
-            double x = roots.get(i);
-            double power = 1.0;
-            for (int j = 0; j <= degree; j++) {
-                mat[i][j] = power;
-                power *= x;
+        for (long r : roots) {
+            List<Long> newPoly = new ArrayList<>(Collections.nCopies(coeffs.size() + 1, 0L));
+            for (int i = 0; i < coeffs.size(); i++) {
+                newPoly.set(i, newPoly.get(i) - r * coeffs.get(i));
+                newPoly.set(i + 1, newPoly.get(i + 1) + coeffs.get(i));
             }
-            mat[i][degree] = 0; // f(root) = 0
+            coeffs = newPoly;
         }
 
-        // Gaussian elimination
-        for (int i = 0; i < k; i++) {
-            double pivot = mat[i][i];
-            if (pivot == 0) continue;
-            for (int j = i; j <= degree; j++) mat[i][j] /= pivot;
-
-            for (int r = 0; r < k; r++) {
-                if (r != i) {
-                    double factor = mat[r][i];
-                    for (int c = i; c <= degree; c++) {
-                        mat[r][c] -= factor * mat[i][c];
-                    }
-                }
-            }
-        }
-
-        // Extract coefficients
-        double[] coeffs = new double[k];
-        for (int i = 0; i < k; i++) coeffs[i] = mat[i][degree];
-
-        // Print output
+        // Print coefficients
         System.out.println("Polynomial Coefficients:");
-        for (double c : coeffs) {
+        for (long c : coeffs) {
             System.out.print(c + " ");
         }
         System.out.println();
     }
 }
-
